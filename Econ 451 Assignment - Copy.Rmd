@@ -1,0 +1,155 @@
+---
+title: "Merger Time Series Draft"
+author: "Nathan Bejsovec"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+library(fredr)
+library(ggplot2)
+library(stargazer)
+library(AER)
+library(forecast)
+library(aTSA)
+```
+
+Value added = A455RC1Q027SBEA
+Change in Inventories = CBIC1
+payroll = BA06RC1A027NBEA
+Value of Shipments = AMTMVS
+
+```{r}
+
+START <- as.Date("1992-01-01")
+END <- as.Date("2022-01-01")
+
+
+fredr_series_observations(series_id = "A455RC1Q027SBEA",
+                           observation_start = START, 
+                           observation_end = END) -> A455RC1Q027SBEA
+
+
+ggplot() +
+  geom_line(data = A455RC1Q027SBEA, aes(x = date, y = value),
+            color = "Red") +
+  labs(x = "", y = "Billions of U.S. Dollars",
+       title = "Gross value added of nonfinancial corporate business")
+
+```
+
+
+```{r}
+
+START <- as.Date("1992-01-01")
+END <- as.Date("2022-01-01")
+
+
+fredr_series_observations(series_id = "CBIC1",
+                           observation_start = START, 
+                           observation_end = END) -> CBIC1
+
+
+ggplot() +
+  geom_line(data = CBIC1, aes(x = date, y = value),
+            color = "Red") +
+  labs(x = "", y = "Billions of Chained 2017 Dollars",
+       title = "Change In Real Private Inventories")
+
+```
+
+
+```{r}
+
+START <- as.Date("1992-01-01")
+END <- as.Date("2022-01-01")
+
+
+fredr_series_observations(series_id = "AMTMVS",
+                           observation_start = START, 
+                           observation_end = END) -> AMTMVS
+
+
+ggplot() +
+  geom_line(data = AMTMVS, aes(x = date, y = value),
+            color = "Red") +
+  labs(x = "", y = "Millions of U.S. Dollars",
+       title = "Manufacturers' Value of Shipments: Total Manufacturing")
+
+```
+
+
+```{r}
+
+START <- as.Date("1992-01-01")
+END <- as.Date("2022-01-01")
+
+
+fredr_series_observations(series_id = "BA06RC1A027NBEA",
+                           observation_start = START, 
+                           observation_end = END) -> BA06RC1A027NBEA
+
+
+ggplot() +
+  geom_line(data = BA06RC1A027NBEA, aes(x = date, y = value),
+            color = "Red") +
+  labs(x = "", y = "Billions of U.S. Dollars",
+       title = "Total Wages and Salaries, BLS")
+
+```
+
+
+
+
+# Stationarity Test
+
+
+```{r}
+
+START <- as.Date("1992-01-01")
+END <- as.Date("2022-01-01")
+
+# value added
+fredr_series_observations(series_id = "A455RC1Q027SBEA",
+                           observation_start = START, 
+                           observation_end = END) -> value_added
+
+# Change in Real Private Inventories
+fredr_series_observations(series_id = "CBIC1",
+                           observation_start = START, 
+                           observation_end = END) -> change_inventories
+
+# Manufacturers' Value of Shipments
+fredr_series_observations(series_id = "AMTMVS",
+                           observation_start = START, 
+                           observation_end = END) -> value_shipments
+
+# Total Wages and Salaries
+fredr_series_observations(series_id = "BA06RC1A027NBEA",
+                           observation_start = START, 
+                           observation_end = END) -> payroll
+
+
+time_series <- ts((value_added$value + diff(change_inventories$value) - payroll$value) / 
+                   (value_shipments$value + diff(change_inventories$value)),
+                 start = c(1992, 2), frequency = 12)
+
+plot(time_series, main = "Time Series Estimate")
+
+adf_test_result <- adf.test(time_series)
+print(adf_test_result)
+
+arima_model <- auto.arima(time_series)
+summary(arima_model)
+
+shocks <- arima_model$residuals^2
+plot(sqrt(shocks), main = "Squared Residuals")
+
+forecast_result <- forecast::forecast(arima_model, h = 12)
+plot(forecast_result, main = "Forecast")
+```
+
+Based on the ADF test result with a p-value of 0.01 we can assume stationary 
+
